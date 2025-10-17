@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+	<meta charset="UTF-8">
+	<title>Contrôle Robot</title>
+	<style>
+		body { font-family: Arial, sans-serif; text-align: center; margin: 30px; }
+		.controls { margin: 20px 0; }
+		button { font-size: 1.2em; margin: 8px; padding: 15px 30px; }
+		#joystickZone { margin: 30px auto; width: 220px; height: 220px; background: #f0f0f0; border-radius: 50%; position: relative; border: 2px solid #bbb; touch-action: none; }
+		#stick { width: 60px; height: 60px; background: #4287f5; border-radius: 50%; position: absolute; left: 80px; top: 80px; transition: background 0.2s; opacity: 0.85; }
+	</style>
+</head>
+<body>
+	<h1>Contrôle du Robot</h1>
+	<div class="controls">
+		<button onclick="sendCommand('avance', 1)">Avancer</button>
+		<button onclick="sendCommand('gauche', 1)">Gauche</button>
+		<button onclick="sendCommand('stop', 0)">Stop</button>
+		<button onclick="sendCommand('droite', 1)">Droite</button>
+		<button onclick="sendCommand('recule', 1)">Reculer</button>
+	</div>
+
+	<h2>Mode Joystick</h2>
+	<div id="joystickZone">
+		<div id="stick"></div>
+	</div>
+	<p id="joystickStatus">Joystick au centre</p>
+
+	<script>
+	// Envoi d'une commande POST au serveur
+	let ws = null;
+	let wsConnected = false;
+
+	function startWebSocket() {
+		try {
+			ws = new WebSocket('ws://' + window.location.hostname + ':8765');
+			ws.addEventListener('open', () => { wsConnected = true; console.log('WS connected'); });
+			ws.addEventListener('close', () => { wsConnected = false; console.log('WS closed'); setTimeout(startWebSocket, 1000); });
+			ws.addEventListener('error', (e) => { wsConnected = false; console.log('WS error', e); ws.close(); });
+		} catch (e) {
+			wsConnected = false;
+		}
+	}
+
+	startWebSocket();
+
+	function sendCommand(type, val) {
+		const msg = JSON.stringify({ type: type, val: val });
+		if (wsConnected && ws && ws.readyState === WebSocket.OPEN) {
+			ws.send(msg);
+		} else {
+			// fallback to POST
+			fetch(`/commandes?type=${encodeURIComponent(type)}&val=${encodeURIComponent(val)}`, { method: 'POST' })
+				.then(r => { if (!r.ok) console.warn('Fallback POST failed'); })
+				.catch(() => {});
+		}
+	}
+
+	// Joystick virtuel
+	const zone = document.getElementById('joystickZone');
+	const stick = document.getElementById('stick');
+	const status = document.getElementById('joystickStatus');
+	let dragging = false, startX = 0, startY = 0;
+
+	function getCenter() {
+		const rect = zone.getBoundingClientRect();
+		return { x: rect.left + rect.width/2, y: rect.top + rect.height/2 };
+	}
+
+
+	// Throttling pour limiter la fréquence d'envoi des commandes joystick
+	let lastSend = 0;
+	const THROTTLE_MS = 10;
+	function handleMove(clientX, clientY) {
+		const center = getCenter();
+		let dx = clientX - center.x;
+		let dy = clientY - center.y;
+		const max = 80;
+		const dist = Math.sqrt(dx*dx + dy*dy);
+		if (dist > max) {
+			dx = dx * max / dist;
+			dy = dy * max / dist;
+		}
+		stick.style.left = (80 + dx) + 'px';
+		stick.style.top = (80 + dy) + 'px';
+		// Calcul direction
+		let angle = Math.atan2(-dy, dx) * 180 / Math.PI;
+		let force = Math.round(Math.min(100, dist/max*100));
+		let dir = 'centre';
+		if (force > 20) {
+			if (angle > -45 && angle < 45) dir = 'droite';
+			else if (angle >= 45 && angle < 135) dir = 'avant';
+			else if (angle <= -45 && angle > -135) dir = 'arriere';
+			else dir = 'gauche';
+		}
+		status.textContent = `Joystick: ${dir} (${force}%)`;
+		// N'envoie la commande que si le délai est écoulé
+		const now = Date.now();
+		if (dragging && (now - lastSend > THROTTLE_MS)) {
+			sendCommand(dir, force);
+			lastSend = now;
+		}
+	}
+
+	zone.addEventListener('pointerdown', e => {
+		dragging = true;
+		handleMove(e.clientX, e.clientY);
+		zone.setPointerCapture(e.pointerId);
+	});
+	zone.addEventListener('pointermove', e => {
+		if (dragging) handleMove(e.clientX, e.clientY);
+	});
+	zone.addEventListener('pointerup', e => {
+		dragging = false;
+		stick.style.left = '80px';
+		stick.style.top = '80px';
+		status.textContent = 'Joystick au centre';
+		sendCommand('stop', 0);
+	});
+	</script>
+</body>
+</html>
