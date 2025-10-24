@@ -8,7 +8,9 @@ import asyncio
 # WebSocket server imports (optional dependency)
 try:
 	import websockets
+	print("websockets package found, WebSocket server enabled")
 except Exception:
+	print("no websockets package found, WebSocket server will be disabled")
 	websockets = None
 
 # Shared container holding only the most recent command.
