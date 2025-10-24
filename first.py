@@ -48,6 +48,11 @@ class GestionnaireRequetes(http.server.SimpleHTTPRequestHandler):
 	# traitement d'une requete POST: on stocke uniquement la dernière commande reçue et on répond immédiatement
 	# do_POST est une methode de la classe SimpleHTTPRequestHandler que nous surchargeons (remplaçons) ici
 	def do_POST(self):
+		# If websockets support is available, prefer WebSocket transport and reject POST commands.
+		if websockets is not None:
+			self._set_headers(405)
+			return
+
 		# dans cet exemple, on s'attend à recevoir une requete POST dont l'URL est "/commandes?type=STRING&val=INTEGER"
 		if self.path.startswith('/commandes'):
 			try:
@@ -128,6 +133,8 @@ async def ws_handler(websocket, path=None):
 				data = json.loads(message)
 				cmd_type = data.get('type')
 				cmd_val = int(data.get('val', 0))
+				# Log parsed command
+				print(f'WS parsed command: type={cmd_type} val={cmd_val}')
 				with latest_cmd_lock:
 					latest_cmd['type'] = cmd_type
 					latest_cmd['val'] = cmd_val
