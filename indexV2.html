@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8" />
+    <title>Contrôle Robot Interactif</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin-top: 50px;
+            background-color: #f0f0f0;
+        }
+        .buttons {
+            margin-bottom: 40px;
+        }
+        button {
+            font-size: 1.2em;
+            padding: 15px 30px;
+            margin: 10px;
+            border-radius: 8px;
+            border: none;
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+            user-select: none;
+            width: 90px;
+        }
+        button:active {
+            background-color: #0056b3;
+        }
+        .joystick {
+            margin: auto;
+            width: 150px;
+            height: 150px;
+            background: #ccc;
+            border-radius: 50%;
+            position: relative;
+            box-shadow: inset 0 0 10px #999;
+            touch-action: none; /* Prevent default touch */
+        }
+        .knob {
+            width: 60px;
+            height: 60px;
+            background: #007bff;
+            border-radius: 50%;
+            position: absolute;
+            top: 45px;
+            left: 45px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+            user-select: none;
+            touch-action: none;
+            transition: top 0.1s, left 0.1s;
+        }
+        #coordinates {
+            margin-top: 20px;
+            font-family: monospace;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>Contrôle Robot Interactif</h1>
+    <div class="buttons">
+        <button id="up">Avant</button><br />
+        <button id="left">Gauche</button>
+        <button id="down">Arrière</button>
+        <button id="right">Droite</button>
+    </div>
+    <div class="joystick" id="joystick">
+        <div class="knob" id="knob"></div>
+    </div>
+    <div id="coordinates">(0, 0)</div>
+
+    <script>
+        // Gestion boutons directionnels
+        const buttons = ['up','down','left','right'];
+        buttons.forEach(id => {
+            const btn = document.getElementById(id);
+            btn.addEventListener('mousedown', () => {
+                console.log(id + ' button pressed');
+                // Ici, envoyer info au serveur ou gérer l'action
+            });
+            btn.addEventListener('mouseup', () => {
+                console.log(id + ' button released');
+            });
+            btn.addEventListener('touchstart', e => {
+                e.preventDefault();
+                console.log(id + ' button pressed (touch)');
+            }, {passive: false});
+            btn.addEventListener('touchend', e => {
+                e.preventDefault();
+                console.log(id + ' button released (touch)');
+            }, {passive: false});
+        });
+
+        // Joystick interactif
+        const joystick = document.getElementById('joystick');
+        const knob = document.getElementById('knob');
+        const coordsDisplay = document.getElementById('coordinates');
+
+        const maxRadius = 45; // Max distance knob can move from center (pixels)
+        let dragging = false;
+
+        function updatePosition(pageX, pageY) {
+            const rect = joystick.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+
+            let deltaX = pageX - centerX;
+            let deltaY = pageY - centerY;
+
+            // Calculate distance to center
+            const dist = Math.hypot(deltaX, deltaY);
+            if(dist > maxRadius) {
+                // Keep knob within circle
+                const angle = Math.atan2(deltaY, deltaX);
+                deltaX = Math.cos(angle) * maxRadius;
+                deltaY = Math.sin(angle) * maxRadius;
+            }
+
+            // Move the knob
+            knob.style.left = (45 + deltaX) + 'px';
+            knob.style.top = (45 + deltaY) + 'px';
+
+            // Normalize values between -1 and 1
+            const normX = (deltaX / maxRadius).toFixed(2);
+            const normY = (-deltaY / maxRadius).toFixed(2); // Invert Y to have up positive
+
+            coordsDisplay.textContent = `X: ${normX}, Y: ${normY}`;
+
+            // Ici vous pouvez envoyer normX et normY au serveur ou gérer le déplacement réel
+            console.log('Joystick moved:', normX, normY);
+        }
+
+        function resetKnob() {
+            knob.style.left = '45px';
+            knob.style.top = '45px';
+            coordsDisplay.textContent = '(0, 0)';
+            console.log('Joystick released');
+        }
+
+        knob.addEventListener('mousedown', e => {
+            e.preventDefault();
+            dragging = true;
+        });
+
+        window.addEventListener('mouseup', e => {
+            if(dragging) {
+                dragging = false;
+                resetKnob();
+            }
+        });
+
+        window.addEventListener('mousemove', e => {
+            if(dragging) {
+                updatePosition(e.pageX, e.pageY);
+            }
+        });
+
+        // Support tactile
+        knob.addEventListener('touchstart', e => {
+            e.preventDefault();
+            dragging = true;
+        }, {passive: false});
+
+        window.addEventListener('touchend', e => {
+            if(dragging) {
+                dragging = false;
+                resetKnob();
+            }
+        }, {passive: false});
+
+        window.addEventListener('touchmove', e => {
+            if(dragging && e.touches.length > 0) {
+                updatePosition(e.touches[0].pageX, e.touches[0].pageY);
+            }
+        }, {passive: false});
+    </script>
+</body>
+</html>
