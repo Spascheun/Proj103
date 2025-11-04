@@ -9,9 +9,11 @@ const DEFAULT_PUBLIC_STUN = [
 // --- classe webRTCClient -------------------------------------------------------
 class webRTCClient {
 	constructor(options = {}) {
+		this.type = 'webrtc';
 		this.options = options;
 		this.pc = null;
 		this.dc = null;
+		this.dcReady = null;
 		this._sendBuffer = [];
 		// ready est une Promise résolue quand la négociation est terminée
 		this.ready = this._init();
@@ -42,7 +44,7 @@ class webRTCClient {
 
 	// initialisation asynchrone : récupère iceServers -> createPeer -> createOffer -> POST offer -> setRemoteDescription(answer)
 	async _init() {
-		const offerUrl = this.options.offerUrl || '/offer_command';
+		const offerUrl = this.options.offerUrl || '/rtcOffer_command';
 		try {
 			const iceServers = DEFAULT_PUBLIC_STUN;
 			const pcConfig = { iceServers };
@@ -50,6 +52,10 @@ class webRTCClient {
 
 			// create data channel AFTER pc created
 			this.dc = this.pc.createDataChannel('commands');
+			this.dcReady = new Promise((resolve, reject) =>{
+			this.dc.onopen = () => resolve();
+			this.dc.onerror = (err) => reject(err);
+			});
 
 			const offer = await this.pc.createOffer();
 			await this.pc.setLocalDescription(offer);
@@ -65,12 +71,15 @@ class webRTCClient {
 				console.warn('No SDP answer in server response');
 				throw new Error('Invalid answer from server');
 			}
-			return { pc: this.pc, dataChannel: this.dc, sendCommand: this.sendCommand.bind(this) };
+			return this;
 		} catch (e) {
 			console.error('Negotiation failed:', e);
 			throw e;
 		}
 	}
+
+	
+	
 
 	// optionnel : wrapper pour fermer proprement
 	async close() {

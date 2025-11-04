@@ -8,8 +8,10 @@
 */
 class WebSocketClient {
 	constructor(url, opts = {}) {
+		this.type = 'websocket';
 		this.url = url;
 		this.ws = null;
+		this.ready = null;
 		this.state = 'closed'; // 'connecting','open','closed'
 		this.onOpen = opts.onOpen || (()=>{});
 		this.onError = opts.onError || ((e)=>{ console.warn('WS error', e); });
@@ -26,16 +28,21 @@ class WebSocketClient {
 			return;
 		}
 
+		this.ready = new Promise((resolve, reject) => {
+			if (this.ws.readyState === WebSocket.OPEN) {
+				this.state = 'open';
+				resolve();
+			} else {
+				this.ws.addEventListener('open', (ev) => {
+					this.state = 'open';
+					resolve();
+				});
+			}
+		});
+
 		// nouveau: gestion de l'ouverture -> état, callback et vidange du buffer
 		this.ws.onopen = (ev) => {
 			this.state = 'open';
-		};
-
-		// nouveau: parser JSON si possible puis appeler onMessage
-		this.ws.onmessage = (ev) => {
-			let data = ev.data;
-			try { data = JSON.parse(ev.data); } catch (e) { /* keep raw */ }
-			this.onMessage(data);
 		};
 
 		this.ws.onerror = (ev) => {
