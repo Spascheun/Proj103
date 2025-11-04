@@ -9,24 +9,18 @@
 class WebSocketClient {
 	constructor(url, opts = {}) {
 		this.url = url;
-		this.protocols = opts.protocols;
 		this.ws = null;
 		this.state = 'closed'; // 'connecting','open','closed'
-		// callbacks exposés
 		this.onOpen = opts.onOpen || (()=>{});
-		this.onMessage = opts.onMessage || ((m)=>{ console.log('WS msg', m); });
-		this.onClose = opts.onClose || (()=>{});
 		this.onError = opts.onError || ((e)=>{ console.warn('WS error', e); });
-
-		// buffer pour envois avant ouverture
-		this.sendBuffer = [];
+		this.connect();
 	}
 
 	connect() {
 		if (this.state === 'connecting' || this.state === 'open') return;
 		this.state = 'connecting';
 		try {
-			this.ws = this.protocols ? new WebSocket(this.url, this.protocols) : new WebSocket(this.url);
+			this.ws = new WebSocket(this.url);
 		} catch (e) {
 			this._handleError(e);
 			return;
@@ -35,16 +29,6 @@ class WebSocketClient {
 		// nouveau: gestion de l'ouverture -> état, callback et vidange du buffer
 		this.ws.onopen = (ev) => {
 			this.state = 'open';
-			this.onOpen(ev);
-			// flush buffer
-			while (this.sendBuffer.length > 0 && this.state === 'open' && this.ws && this.ws.readyState === WebSocket.OPEN) {
-				const m = this.sendBuffer.shift();
-				try { this.ws.send(m); } catch (e) {
-					console.warn('WS flush failed, requeue', e);
-					this.sendBuffer.unshift(m);
-					break;
-				}
-			}
 		};
 
 		// nouveau: parser JSON si possible puis appeler onMessage
@@ -64,10 +48,14 @@ class WebSocketClient {
 		};
 	}
 
+	sendCommand(x, y) {
+		return this.send({ x, y });
+	}
+
 	send(obj) {
 		let msg;
 		try {
-			msg = (typeof obj === 'string') ? obj : JSON.stringify(obj);
+			msg = JSON.stringify(obj);
 		} catch (e) {
 			console.warn('WS send: failed to serialize', e);
 			return false;
@@ -77,13 +65,12 @@ class WebSocketClient {
 				this.ws.send(msg);
 				return true;
 			} catch (e) {
-				console.warn('WS send failed, buffering', e);
-				this.sendBuffer.push(msg);
+				console.warn('WS send failed', e);
 				return false;
 			}
+		
 		} else {
-			// bufferise si pas encore ouvert
-			this.sendBuffer.push(msg);
+			console.warn('WS not open, cannot send');
 			return false;
 		}
 	}
@@ -100,5 +87,4 @@ class WebSocketClient {
 	}
 }
 
-// Expose global helper
-window.WebSocketClient = WebSocketClient;
+export { WebSocketClient };

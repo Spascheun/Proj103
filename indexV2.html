@@ -175,6 +175,12 @@
                 updatePosition(e.touches[0].pageX, e.touches[0].pageY);
             }
         }, {passive: false});
+
+        import { createClient } from './javaScript/main.js';
+        console.log('Initialisation d\'un client..');
+        const client = await createClient();
+        client.sendCommand(0,0); // Exemple d'envoi de commande initiale
+
     </script>
 </body>
 </html>
