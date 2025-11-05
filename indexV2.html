@@ -86,8 +86,6 @@
         // Importation du module client et initialisation
         import { createClient } from './javaScript/main.js';
         console.log('Initialisation d\'un client..');
-        // Top-level await is supported in ES modules. createClient retourne
-        // une instance avec sendCommand(x,y).
         (async () => {
             try {
                 window.robotClient = await createClient(DEFAULT_SERVER_TYPE);
@@ -105,7 +103,6 @@
             const btn = document.getElementById(id);
             btn.addEventListener('mousedown', () => {
                 console.log(id + ' button pressed');
-                // Ici, envoyer info au serveur ou gérer l'action
             });
             btn.addEventListener('mouseup', () => {
                 console.log(id + ' button released');

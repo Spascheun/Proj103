@@ -30,7 +30,7 @@ class webRTCClient {
 		return await res.json();
 	}
 
-	// méthode publique pour envoyer des commandes (bufferise si nécessaire)
+	// méthode publique pour envoyer des commandes
 	sendCommand(x, y) {
 		let msg;
 		try { msg = JSON.stringify({ x, y }); } catch (e) { console.warn('Failed to serialize command', e); return false; }
@@ -42,7 +42,7 @@ class webRTCClient {
 		}
 	}
 
-	// initialisation asynchrone : récupère iceServers -> createPeer -> createOffer -> POST offer -> setRemoteDescription(answer)
+	// initialisation asynchrone du client WebRTC
 	async _init() {
 		const offerUrl = this.options.offerUrl || '/rtcOffer_command';
 		try {
@@ -76,15 +76,6 @@ class webRTCClient {
 			console.error('Negotiation failed:', e);
 			throw e;
 		}
-	}
-
-	
-	
-
-	// optionnel : wrapper pour fermer proprement
-	async close() {
-		try { if (this.dc) this.dc.close(); } catch (_) {}
-		try { if (this.pc) await this.pc.close(); } catch (_) {}
 	}
 }
 // --- fin de la classe webRTCClient ---------------------------------------

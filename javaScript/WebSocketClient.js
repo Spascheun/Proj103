@@ -1,11 +1,4 @@
-/* Client WebSocket minimal réutilisable (navigateur).
-   Usage :
-     const client = new WebSocketClient('ws://host:port/path', { protocols: ['json'], reconnect: true });
-     client.onMessage = (msg) => { ... };
-     client.connect();
-     client.send({type:'cmd', val: 42});
-     client.close();
-*/
+//--- début de la classe WebSocketClient ---------------------------------------
 class WebSocketClient {
 	constructor(url, opts = {}) {
 		this.type = 'websocket';
@@ -55,6 +48,7 @@ class WebSocketClient {
 		};
 	}
 
+	// méthode publique pour envoyer des commandes
 	sendCommand(x, y) {
 		return this.send({ x, y });
 	}
@@ -93,5 +87,7 @@ class WebSocketClient {
 		try { this.onError(e); } catch (ex) { console.warn('onError handler threw', ex); }
 	}
 }
+// --- fin de la classe WebSocketClient ---------------------------------------
 
+// exportation de la classe pour usage en module
 export { WebSocketClient };
