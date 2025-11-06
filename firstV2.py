@@ -2,13 +2,20 @@ import asyncio
 import json
 from aiohttp import web
 import aiortc as rtc
+import clientInServer as cis
 
 HOST = "0.0.0.0" #localhost allowing external connections
-PORT = 8080
-MAIN_PAGE = "indexV2.html"
-
+PORT = 8080 # Port du serveur web
+MAIN_PAGE = "indexV2.html" # Main page file
+SUIVI_SERVER_URL = "http://proj103.r2.enst.fr"  # URL du serveur de suivi
+SUIVI_SERVER_PORT = 80 # Port du serveur de suivi
+SUIVI_UPDATE_INTERVAL = 1.0  # Intervalle en secondes pour l'envoi des mises à jour de suivi
 
 pc = {}
+
+position = {"x": 0, "y": 0}
+
+
 
 def command(cmd : dict):
     print("Command received:", cmd)
@@ -112,3 +119,5 @@ if __name__ == "__main__":
     app.add_routes([web.get('/ws', ws_command)])
     app.on_startup.append(on_startup)
     web.run_app(app, host=HOST, port=PORT)
+    #client = cis.webClient(SUIVI_SERVER_URL, SUIVI_SERVER_PORT, SUIVI_UPDATE_INTERVAL)
+    #asyncio.run(client.update_suivi())
