@@ -81,7 +81,7 @@
     <script src="https://unpkg.com/nipplejs@0.10.2/dist/nipplejs.js"></script>
     <script type="module">
 
-        const DEFAULT_SERVER_TYPE = 'websocket';
+        const DEFAULT_SERVER_TYPE = 'webrtc'; // 'websocket' or 'webrtc' (webrtc will fall back to websocket if unsupported)
 
         // Importation du module client et initialisation
         import { createClient } from './javaScript/main.js';

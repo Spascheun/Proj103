@@ -3,7 +3,7 @@ import json
 from aiohttp import web
 import aiortc as rtc
 
-HOST = "localhost"
+HOST = "0.0.0.0" #localhost allowing external connections
 PORT = 8080
 MAIN_PAGE = "indexV2.html"
 
