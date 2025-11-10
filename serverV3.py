@@ -8,27 +8,12 @@ import threading
 pc = {}
 
 class webServer:
-    def __init__(self, host, port, main_page, suivi_server_url, suivi_server_port, suivi_update_interval, command_function=None):
-        self.client = cis.webClient(suivi_server_url, suivi_server_port, suivi_update_interval)
+    def __init__(self, host, port, main_page, command_function=None):
         self.host = host
         self.port = port
         self.main_page = main_page
         self.command = command_function if command_function is not None else lambda cmd: print("Command received:", cmd)
 
-
-    async def close(self):
-        """Close the underlying client on the server event loop.
-
-        This schedules the client's close coroutine on the server's secondary loop
-        and awaits its completion. If the server loop isn't started yet, fall back
-        to calling the client's close() directly.
-        """
-        if hasattr(self, 'loop'):
-            fut = asyncio.run_coroutine_threadsafe(self.client.close(), self.loop)
-            # wrap the concurrent.futures.Future so we can await it
-            return await asyncio.wrap_future(fut)
-        else:
-            await self.client.close()
 
     def _ensure_loop(self):
         if not hasattr(self, 'loop'):
@@ -52,15 +37,16 @@ class webServer:
         print(f"Main page at http://{self.host}:{self.port} \033[0m", flush=True)
 
         
-    async def thread_loop_init(self):
-        asyncio.set_event_loop(self.loop)
-        self.loop.run_forever()
+    async def thread_loop_init(self, loop):
+        asyncio.set_event_loop(loop)
+        loop.run_forever()
 
     async def start(self):
         self.loop = asyncio.new_event_loop()
-        self.thread = threading.Thread(target=self.thread_loop_init, daemon=True)
+        self.thread = threading.Thread(target=self.thread_loop_init, args=(self.loop,), daemon=True)
         self.thread.start()
         asyncio.run_coroutine_threadsafe(self.thread_init(), self.loop).result()
+
 
     async def ws_command(self, request : web.Request) -> web.Response:
         ws = web.WebSocketResponse()
@@ -146,47 +132,4 @@ class webServer:
     async def get_web_socket_client_js_handler(self, request : web.Request) -> web.Response:
         return web.FileResponse("javaScript/WebSocketClient.js")
 
-    # --- Proxy methods: schedule clientInServer.webClient coroutines on server loop ---
-    # Each method returns the concurrent.futures.Future returned by
-    # asyncio.run_coroutine_threadsafe(...). Callers may call .result(timeout)
-    # or convert to an awaitable with asyncio.wrap_future() if needed.
-
-    def update_suivi(self, get_position_function, tid=None):
-        self._ensure_loop()
-        return asyncio.run_coroutine_threadsafe(self.client.update_suivi(get_position_function, tid), self.loop)
-
-    def get_flags(self):
-        self._ensure_loop()
-        return asyncio.run_coroutine_threadsafe(self.client.get_flags(), self.loop)
-
-    def capture_flag(self, mid, msec, minner, tid=None, wait=True):
-        self._ensure_loop()
-        return asyncio.run_coroutine_threadsafe(self.client.capture_flag(mid, msec, minner, tid, wait), self.loop)
-
-    def get_race_status(self):
-        self._ensure_loop()
-        return asyncio.run_coroutine_threadsafe(self.client.get_race_status(), self.loop)
-
-    def write_register(self, rid, val, tid=None):
-        self._ensure_loop()
-        return asyncio.run_coroutine_threadsafe(self.client.write_register(rid, val, tid), self.loop)
-
-    def read_register(self, rid, team=None):
-        self._ensure_loop()
-        return asyncio.run_coroutine_threadsafe(self.client.read_register(rid, team), self.loop)
-
-    def launch_race(self):
-        self._ensure_loop()
-        return asyncio.run_coroutine_threadsafe(self.client.launch_race(), self.loop)
-
-    def stop_race(self):
-        self._ensure_loop()
-        return asyncio.run_coroutine_threadsafe(self.client.stop_race(), self.loop)
-
-    def select_flag_pattern(self, n):
-        self._ensure_loop()
-        return asyncio.run_coroutine_threadsafe(self.client.select_flag_pattern(n), self.loop)
-
-    def get_flag_pattern(self):
-        self._ensure_loop()
-        return asyncio.run_coroutine_threadsafe(self.client.get_flag_pattern(), self.loop)
+    

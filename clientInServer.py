@@ -2,8 +2,8 @@ import aiohttp as web
 import warnings
 import asyncio
 import json
+import threading
 
-from matplotlib.style import context
 
 class webClient:
     '''Cet objet est exclusivement destiné à être utilisé dans un webServer (cf serverV3.py).'''
@@ -14,13 +14,30 @@ class webClient:
         self.suivi_update_interval = suivi_update_interval
         self.send_position = True
 
+    async def thread_loop_init(self, loop):
+        asyncio.set_event_loop(loop)
+        loop.run_forever()
+
+    async def start(self):
+        self.loop = asyncio.new_event_loop()
+        self.thread = threading.Thread(target=self.thread_loop_init, args=(self.loop,), daemon=True)
+        self.thread.start()
+        
+
+    def _ensure_loop(self):
+        if not hasattr(self, 'loop'):
+            raise RuntimeError("Client loop not started. Call start() before using client proxy methods.")
+
+
     async def close(self):
         try:
             await self.session.close()
         except Exception:
             pass
     
-    def http_status_handler(self, status_code, context, response_text=None):
+    
+
+    async def http_status_handler(self, status_code, context, response_text=None):
         match status_code:
             case 200:
                 print(f"{context} succeeded")
