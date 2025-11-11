@@ -13,15 +13,6 @@ class webServer:
         self.port = port
         self.main_page = main_page
         self.command = command_function if command_function is not None else lambda cmd: print("Command received:", cmd)
-
-
-    def _ensure_loop(self):
-        if not hasattr(self, 'loop'):
-            raise RuntimeError("Server loop not started. Call start() before using client proxy methods.")
-
-
-
-    async def thread_init(self):
         self.app = web.Application()
         self.app.router.add_post("/rtcOffer_command", self.rtcOffer_command)
         self.app.router.add_get("/", self.get_main_page_handler)
@@ -30,9 +21,16 @@ class webServer:
         self.app.router.add_get("/javaScript/WebSocketClient.js", self.get_web_socket_client_js_handler)
         self.app.add_routes([web.get('/ws', self.ws_command)])
         self.runner = web.AppRunner(self.app)
+
+    def _ensure_loop(self):
+        if not hasattr(self, 'loop'):
+            raise RuntimeError("Server loop not started. Call start() before using client proxy methods.")
+
+
+
+    async def thread_init(self):
         await self.runner.setup()
-        site = web.TCPSite(self.runner, self.host, self.port)
-        await site.start()
+        await web.TCPSite(self.runner, self.host, self.port).start()
         print(f"\033[92mServer started at http://{self.host}:{self.port}", flush=True)
         print(f"Main page at http://{self.host}:{self.port} \033[0m", flush=True)
 

@@ -21,7 +21,6 @@ class webAPI:
             main_page=MAIN_PAGE,
             suivi_server_url=SUIVI_SERVER_URL,
             suivi_server_port=SUIVI_SERVER_PORT,
-            suivi_update_interval=SUIVI_UPDATE_INTERVAL,
             command_function=None  # Utilise la fonction de commande par défaut
         ):
             self.server = serverV3.webServer(
@@ -33,7 +32,6 @@ class webAPI:
             self.client = clientInServer.webClient(
                 suivi_server_url,
                 suivi_server_port,
-                suivi_update_interval
             )
 
     async def start_server(self): return await self.server.start()
@@ -47,9 +45,13 @@ class webAPI:
     # asyncio.run_coroutine_threadsafe(...). Callers may call .result(timeout)
     # or convert to an awaitable with asyncio.wrap_future() if needed.
 
-    def update_suivi(self, get_position_function, tid=None):
+    def start_update_suivi(self, get_position_function, suivi_update_interval = SUIVI_UPDATE_INTERVAL  ,tid = None):
         self.client._ensure_loop()
-        return asyncio.run_coroutine_threadsafe(self.client.update_suivi(get_position_function, tid), self.client.loop)
+        return asyncio.run_coroutine_threadsafe(self.client.update_suivi(get_position_function, suivi_update_interval, tid), self.client.loop)
+
+    def stop_update_suivi(self):
+        self.client._ensure_loop()
+        return asyncio.run_coroutine_threadsafe(self.client.stop_update_suivi(), self.client.loop)
 
     def get_flags(self):
         self.client._ensure_loop()
