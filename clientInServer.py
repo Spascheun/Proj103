@@ -6,23 +6,24 @@ import threading
 
 
 class webClient:
-    '''Cet objet est exclusivement destiné à être utilisé dans un webServer (cf serverV3.py).'''
-    def __init__(self, suivi_server_url, suivi_server_port, suivi_update_interval):
+    def __init__(self, suivi_server_url, suivi_server_port):
         self.session = web.ClientSession()
         self.suivi_server_url = suivi_server_url
         self.suivi_server_port = suivi_server_port
-        self.suivi_update_interval = suivi_update_interval
         self.send_position = True
 
     def thread_loop_init(self, loop):
         asyncio.set_event_loop(loop)
         loop.run_forever()
 
+    async def thread_init(self):
+        pass
+
     async def start(self):
         self.loop = asyncio.new_event_loop()
         self.thread = threading.Thread(target=self.thread_loop_init, args=(self.loop,), daemon=True)
         self.thread.start()
-        
+        asyncio.run_coroutine_threadsafe(self.thread_init, self.loop)
 
     def _ensure_loop(self):
         if not hasattr(self, 'loop'):
@@ -34,7 +35,6 @@ class webClient:
             await self.session.close()
         except Exception:
             pass
-    
     
 
     async def http_status_handler(self, status_code, context, response_text=None):
@@ -61,13 +61,18 @@ class webClient:
                 warnings.warn(f"Unexpected status code {status_code} when {context}")
                 return False
 
-    async def update_suivi(self, get_position_function, tid=None):
+    async def start_update_suivi(self, get_position_function, suivi_update_interval, tid = None):
         t = "" if tid is None else f"&t={tid}"
+        print(f"Starting location updates every {suivi_update_interval} seconds to {self.suivi_server_url}:{self.suivi_server_port} {"" if tid is None else f"as team {tid}"}")
         while self.send_position:
             x, y = await get_position_function()
             async with self.session.post(f"{self.suivi_server_url}/api/pos?x={x}&y={y}{t}:{self.suivi_server_port}") as resp:
                 self.http_status_handler(await resp.status, "Position update", await resp.text())
-            await asyncio.sleep(self.suivi_update_interval)
+            await asyncio.sleep(suivi_update_interval)
+        print("Stopping location updates")
+
+    async def stop_update_suivi(self):
+        self.send_position = False
 
     async def get_flags(self):
         async with self.session.get(f"{self.suivi_server_url}/api/list:{self.suivi_server_port}") as resp:
