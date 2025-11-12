@@ -33,7 +33,19 @@ class webRTCClient {
 	// méthode publique pour envoyer des commandes
 	sendCommand(x, y) {
 		let msg;
-		try { msg = JSON.stringify({ x, y }); } catch (e) { console.warn('Failed to serialize command', e); return false; }
+		try { msg = JSON.stringify({ 'x': x, 'y': y, 'type'	: "command" }); } catch (e) { console.warn('Failed to serialize command', e); return false; }
+		if (this.dc && this.dc.readyState === 'open') {
+			try { this.dc.send(msg); return true; } catch (e) { console.warn('Send failed', e); return false; }
+		} else { 
+			console.warn('DataChannel not open');
+			return false;
+		}
+	}
+
+	toggleCommands() {
+		this.mode = this.mode === 'manual' ? 'automatic' : 'manual';
+		let msg;
+		try { msg = JSON.stringify({ 'type': "toggle_commands" }); } catch (e) { console.warn('Failed to serialize toggle command', e); return false; }
 		if (this.dc && this.dc.readyState === 'open') {
 			try { this.dc.send(msg); return true; } catch (e) { console.warn('Send failed', e); return false; }
 		} else { 

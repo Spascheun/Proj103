@@ -5,7 +5,6 @@ import aiortc as rtc
 import clientInServer as cis
 import threading
 
-pc = {}
 
 class webServer:
     def __init__(self, host, port, main_page, command_function=None):
@@ -18,7 +17,6 @@ class webServer:
     def _ensure_loop(self):
         if not hasattr(self, 'loop'):
             raise RuntimeError("Server loop not started. Call start() before using client proxy methods.")
-
 
 
     async def thread_init(self):
@@ -37,7 +35,7 @@ class webServer:
         print(f"Main page at http://{self.host}:{self.port} \033[0m", flush=True)
 
         
-    async def thread_loop_init(self, loop):
+    def thread_loop_init(self, loop):
         asyncio.set_event_loop(loop)
         loop.run_forever()
 
@@ -49,13 +47,12 @@ class webServer:
 
 
     async def ws_command(self, request : web.Request) -> web.Response:
-        ws = web.WebSocketResponse()
-        await ws.prepare(request)
+        self.ws = web.WebSocketResponse()
+        await self.ws.prepare(request)
 
-        pc["command_ws"] = ws
         print('websocket connection established')
 
-        async for msg in ws:
+        async for msg in self.ws:
             if msg.type == web.WSMsgType.TEXT:
                 try:
                     self.command(json.loads(msg.data))
@@ -64,24 +61,26 @@ class webServer:
                     pass
             elif msg.type == web.WSMsgType.ERROR:
                 print('ws connection closed with exception %s' %
-                    ws.exception())
+                    self.ws.exception())
 
-        del pc["command_ws"]
+        del self.ws
         print('websocket connection closed')
-        return ws
+        return self.ws
+
+    async def toggle_commands(self):
+        pass
 
     async def rtcOffer_command(self, request : web.Request) -> web.Response:
         params = await request.json()
         offer = rtc.RTCSessionDescription(sdp=params["sdp"], type=params["type"])
 
-        peer_connection = rtc.RTCPeerConnection()
-        pc["command_peer"] = peer_connection
+        self.pc = rtc.RTCPeerConnection()
 
 
-        @peer_connection.on("datachannel")
+        @self.pc.on("datachannel")
         def on_datachannel(channel):
             print("DataChannel received:", channel.label)
-            pc["command_dc"] = channel
+            self.dc = channel
 
             @channel.on("open")
             def on_open():
@@ -90,33 +89,37 @@ class webServer:
             @channel.on("message")
             def on_message(message):
                 try:
-                    self.command(json.loads(message))
+                    msg = json.loads(message)
+                    match msg['type']:
+                        case "command":
+                            self.command(msg['x'], msg['y'])
+                        case "toggle_commands":
+                            self.toggle_commands()
                 except Exception:
                     print("Failed to treat message as command")
                     pass
 
-        @peer_connection.on("iceconnectionstatechange")
+        @self.pc.on("iceconnectionstatechange")
         async def on_iceconnectionstatechange():
-            ICEState = peer_connection.iceConnectionState
+            ICEState = self.pc.iceConnectionState
             print("ICE connection state is %s" % ICEState)
             match ICEState:
                 case "failed":
-                    await peer_connection.close()
-                    del pc["command_peer"]
+                    await self.pc.close()
+                    del self.pc
                 case "completed":
                     print("WebRTC connection established")
                 case "closed":
                     print("WebRTC connection closed")
 
-        await peer_connection.setRemoteDescription(offer)
-        answer = await peer_connection.createAnswer()
-        await peer_connection.setLocalDescription(answer)
-        
+        await self.pc.setRemoteDescription(offer)
+        answer = await self.pc.createAnswer()
+        await self.pc.setLocalDescription(answer)
 
         return web.Response(
             content_type="application/json",
             text=json.dumps(
-                {"sdp": peer_connection.localDescription.sdp, "type": peer_connection.localDescription.type}
+                {"sdp": self.pc.localDescription.sdp, "type": self.pc.localDescription.type}
             ),
         )
 

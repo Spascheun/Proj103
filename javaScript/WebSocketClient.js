@@ -50,7 +50,12 @@ class WebSocketClient {
 
 	// méthode publique pour envoyer des commandes
 	sendCommand(x, y) {
-		return this.send({ x, y });
+		return this.send({ 'x': x, 'y': y, 'type'	: "command" });
+	}
+
+	toggleCommands() {
+		this.mode = this.mode === 'manual' ? 'automatic' : 'manual';
+		return this.send(JSON.stringify({ 'type': "toggle_commands" }));
 	}
 
 	send(obj) {

@@ -14,7 +14,7 @@ class webClient:
         self.suivi_update_interval = suivi_update_interval
         self.send_position = True
 
-    async def thread_loop_init(self, loop):
+    def thread_loop_init(self, loop):
         asyncio.set_event_loop(loop)
         loop.run_forever()
 
