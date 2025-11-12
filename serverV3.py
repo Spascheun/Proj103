@@ -29,11 +29,6 @@ class webServer:
         self.app.add_routes([web.get('/ws', self.ws_command)])
         self.runner = web.AppRunner(self.app)
 
-    def _ensure_loop(self):
-        if not hasattr(self, 'loop'):
-            raise RuntimeError("Server loop not started. Call start() before using client proxy methods.")
-
-
 
     async def thread_init(self):
         await self.runner.setup()
