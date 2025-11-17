@@ -2,7 +2,6 @@ import aiohttp as web
 import warnings
 import asyncio
 import json
-import threading
 
 
 class webClient:
@@ -12,29 +11,13 @@ class webClient:
         self.suivi_server_port = suivi_server_port
         self.send_position = True
 
-    def thread_loop_init(self, loop):
-        asyncio.set_event_loop(loop)
-        loop.run_forever()
-
-    async def thread_init(self):
-        pass
-
-    async def start(self):
-        self.loop = asyncio.new_event_loop()
-        self.thread = threading.Thread(target=self.thread_loop_init, args=(self.loop,), daemon=True)
-        self.thread.start()
-        asyncio.run_coroutine_threadsafe(self.thread_init(), self.loop)
-
-    def _ensure_loop(self):
-        if not hasattr(self, 'loop'):
-            raise RuntimeError("Client loop not started. Call start() before using client proxy methods.")
-
 
     async def close(self):
-        try:
-            await self.session.close()
-        except Exception:
-            pass
+        print("Closing web client")
+        self.send_position = False
+        await self.session.close()
+        print("Web client closed")
+        
     
 
     async def http_status_handler(self, status_code, context, response_text=None):

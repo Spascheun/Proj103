@@ -2,24 +2,27 @@ import asyncio
 import json
 from aiohttp import web
 import aiortc as rtc
-import clientInServer as cis
-import threading
+from multiprocessing import Queue
+import warnings
 
+
+def new_web_server_process(cfg : dict, command_queue : Queue, toggle_queue : Queue) -> None:
+    '''Start a web server in a new process using the plain config dict.
+
+    `cfg` is expected to be a dict with keys: host, port, main_page, ...
+    `command_queue` is a multiprocessing.Queue used for parent-child IPC.
+    '''
+    print("initializing web server process")
+    server = webServer(cfg["host"], cfg["port"], cfg["main_page"], command_queue, toggle_queue)
+    server.run() 
 
 class webServer:
-    def __init__(self, host, port, main_page, command_function=None):
+    def __init__(self, host : str, port : int, main_page : str, command_queue : Queue, toggle_queue : Queue):
         self.host = host
         self.port = port
         self.main_page = main_page
-        self.command = command_function if command_function is not None else lambda cmd: print("Command received:", cmd)
-
-
-    def _ensure_loop(self):
-        if not hasattr(self, 'loop'):
-            raise RuntimeError("Server loop not started. Call start() before using client proxy methods.")
-
-
-    async def thread_init(self):
+        self.command_queue = command_queue
+        self.toggle_queue = toggle_queue
         self.app = web.Application()
         self.app.router.add_post("/rtcOffer_command", self.rtcOffer_command)
         self.app.router.add_get("/", self.get_main_page_handler)
@@ -27,22 +30,21 @@ class webServer:
         self.app.router.add_get("/javaScript/WebRTCClient.js", self.get_web_rtc_client_js_handler)
         self.app.router.add_get("/javaScript/WebSocketClient.js", self.get_web_socket_client_js_handler)
         self.app.add_routes([web.get('/ws', self.ws_command)])
-        self.runner = web.AppRunner(self.app)
-        await self.runner.setup()
-        await web.TCPSite(self.runner, self.host, self.port).start()
-        print(f"\033[92mServer started at http://{self.host}:{self.port}", flush=True)
+
+    def command(self, cmd : dict):
+        """Handle a command received from a client."""
+        print("Command received:", cmd)
+        if self.command_queue is not None:
+            self.command_queue.put(cmd)
+        else:
+            warnings.warn("No command queue defined; cannot forward command")
+            
+
+    def run(self):
+        print(f"\033[92mServer starting at http://{self.host}:{self.port}", flush=True)
         print(f"Main page at http://{self.host}:{self.port} \033[0m", flush=True)
-
-        
-    def thread_loop_init(self, loop):
-        asyncio.set_event_loop(loop)
-        loop.run_forever()
-
-    async def start(self):
-        self.loop = asyncio.new_event_loop()
-        self.thread = threading.Thread(target=self.thread_loop_init, args=(self.loop,), daemon=True)
-        self.thread.start()
-        asyncio.run_coroutine_threadsafe(self.thread_init(), self.loop).result()
+        web.run_app(self.app, host=self.host, port=self.port)
+        print("Web server stopped")
 
 
     async def ws_command(self, request : web.Request) -> web.Response:
@@ -67,7 +69,11 @@ class webServer:
         return self.ws
 
     async def toggle_commands(self):
-        pass
+        print("Toggling commands")
+        if self.toggle_queue is not None:
+            self.toggle_queue.put(True)
+        else:
+            warnings.warn("No toggle queue defined; cannot toggle commands")
 
     async def rtcOffer_command(self, request : web.Request) -> web.Response:
         params = await request.json()
@@ -91,7 +97,7 @@ class webServer:
                     msg = json.loads(message)
                     match msg['type']:
                         case "command":
-                            self.command(msg['x'], msg['y'])
+                            self.command((msg['x'], msg['y']))
                         case "toggle_commands":
                             self.toggle_commands()
                 except Exception:
@@ -126,6 +132,7 @@ class webServer:
         return web.FileResponse(self.main_page)
 
     async def get_main_js_handler(self, request : web.Request) -> web.Response:
+        print("Serving main.js")
         return web.FileResponse("javaScript/main.js")
 
     async def get_web_rtc_client_js_handler(self, request : web.Request) -> web.Response:

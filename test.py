@@ -1,9 +1,12 @@
 import API
-import asyncio
 
-async def main():
+
+if __name__ == "__main__":
     api = API.webAPI()
-    await api.start_server()
-    await api.start_client()
-
-asyncio.run(main())
+    try :
+        api.start()
+        while True:
+            pass
+    except KeyboardInterrupt:
+        print("KeyboardInterrupt received")
+        api.close()
