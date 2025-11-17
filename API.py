@@ -3,7 +3,7 @@ import clientInServer
 import asyncio
 import multiprocessing
 import threading
-import signal
+
 
 HOST = "0.0.0.0" #localhost allowing external connections
 PORT = 8080
