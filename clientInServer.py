@@ -3,6 +3,7 @@ import warnings
 import asyncio
 import json
 import threading
+from multiprocessing import Process, Queue
 
 
 class webClient:
@@ -12,18 +13,18 @@ class webClient:
         self.suivi_server_port = suivi_server_port
         self.send_position = True
 
-    async def thread_loop_init(self, loop):
+    async def process_loop_init(self, loop):
         asyncio.set_event_loop(loop)
         loop.run_forever()
 
-    async def thread_init(self):
+    async def process_init(self):
         pass
 
     async def start(self):
         self.loop = asyncio.new_event_loop()
-        self.thread = threading.Thread(target=self.thread_loop_init, args=(self.loop,), daemon=True)
-        self.thread.start()
-        asyncio.run_coroutine_threadsafe(self.thread_init, self.loop)
+        self.process = Process(target=self.process_loop_init, args=(self.loop,), daemon=True)
+        self.process.start()
+        asyncio.run_coroutine_threadsafe(self.process_init(), self.loop)
 
     def _ensure_loop(self):
         if not hasattr(self, 'loop'):

@@ -47,7 +47,7 @@ class webAPI:
 
     def start_update_suivi(self, get_position_function, suivi_update_interval = SUIVI_UPDATE_INTERVAL  ,tid = None):
         self.client._ensure_loop()
-        return asyncio.run_coroutine_threadsafe(self.client.update_suivi(get_position_function, suivi_update_interval, tid), self.client.loop)
+        return asyncio.run_coroutine_threadsafe(self.client.start_update_suivi(get_position_function, suivi_update_interval, tid), self.client.loop)
 
     def stop_update_suivi(self):
         self.client._ensure_loop()

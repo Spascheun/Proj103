@@ -3,7 +3,8 @@ import json
 from aiohttp import web
 import aiortc as rtc
 import clientInServer as cis
-import threading
+from multiprocessing import Process, Queue
+import os
 
 pc = {}
 
@@ -21,6 +22,7 @@ class webServer:
         self.app.router.add_get("/javaScript/WebSocketClient.js", self.get_web_socket_client_js_handler)
         self.app.add_routes([web.get('/ws', self.ws_command)])
         self.runner = web.AppRunner(self.app)
+        print(os.getpid())
 
     def _ensure_loop(self):
         if not hasattr(self, 'loop'):
@@ -28,22 +30,22 @@ class webServer:
 
 
 
-    async def thread_init(self):
+    async def process_init(self):
+        print(os.getpid())
         await self.runner.setup()
         await web.TCPSite(self.runner, self.host, self.port).start()
         print(f"\033[92mServer started at http://{self.host}:{self.port}", flush=True)
         print(f"Main page at http://{self.host}:{self.port} \033[0m", flush=True)
 
-        
-    async def thread_loop_init(self, loop):
+    async def process_loop_init(self, loop):
         asyncio.set_event_loop(loop)
         loop.run_forever()
 
     async def start(self):
         self.loop = asyncio.new_event_loop()
-        self.thread = threading.Thread(target=self.thread_loop_init, args=(self.loop,), daemon=True)
-        self.thread.start()
-        asyncio.run_coroutine_threadsafe(self.thread_init(), self.loop).result()
+        self.process = Process(target=self.process_loop_init, args=(self.loop,), daemon=True)
+        self.process.start()
+        asyncio.run_coroutine_threadsafe(self.process_init(), self.loop).result()
 
 
     async def ws_command(self, request : web.Request) -> web.Response:
@@ -88,6 +90,7 @@ class webServer:
             @channel.on("message")
             def on_message(message):
                 try:
+                    print(f"dc msg received on {os.getpid()}")
                     self.command(json.loads(message))
                 except Exception:
                     print("Failed to treat message as command")
