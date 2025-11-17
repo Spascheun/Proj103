@@ -23,7 +23,7 @@ class webClient:
         self.loop = asyncio.new_event_loop()
         self.thread = threading.Thread(target=self.thread_loop_init, args=(self.loop,), daemon=True)
         self.thread.start()
-        asyncio.run_coroutine_threadsafe(self.thread_init, self.loop)
+        asyncio.run_coroutine_threadsafe(self.thread_init(), self.loop)
 
     def _ensure_loop(self):
         if not hasattr(self, 'loop'):

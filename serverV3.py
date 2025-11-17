@@ -28,9 +28,6 @@ class webServer:
         self.app.router.add_get("/javaScript/WebSocketClient.js", self.get_web_socket_client_js_handler)
         self.app.add_routes([web.get('/ws', self.ws_command)])
         self.runner = web.AppRunner(self.app)
-
-
-    async def thread_init(self):
         await self.runner.setup()
         await web.TCPSite(self.runner, self.host, self.port).start()
         print(f"\033[92mServer started at http://{self.host}:{self.port}", flush=True)
