@@ -13,7 +13,7 @@ class webClient:
         self.suivi_server_port = suivi_server_port
         self.send_position = True
 
-    async def process_loop_init(self, loop):
+    def process_loop_init(self, loop):
         asyncio.set_event_loop(loop)
         loop.run_forever()
 
