@@ -133,11 +133,13 @@ class webServer:
         )
 
     async def get_energy_handler(self, request : web.Request) -> web.Response:
-        return web.Response(text=self.shared.get("energy_data"))
+        txt = self.shared.get("energy_data")
+        return web.Response(text=txt if txt is not None else json.dumps(None))
     
     async def get_movement_status_handler(self, request : web.Request) -> web.Response:
-        return web.Response(text=self.shared.get("movement_status"))
-
+        txt = self.shared.get("movement_status")
+        return web.Response(text=txt if txt is not None else json.dumps(None))
+       
     async def get_main_page_handler(self, request : web.Request) -> web.Response:
         return web.FileResponse(self.main_page)
 

@@ -45,8 +45,6 @@ class webAPI:
             self.command_queue = None
             self.toggle_queue = None
             self.js_path = js_path
-            self.get_energie_handler = tool.get_handler(self.main_application.energy.get_energy_data)
-            self.get_movement_status_handler = tool.get_handler(self.main_application.movement.get_movement_status)
             self.shared = multiprocessing.Manager().dict()
 
 
@@ -226,8 +224,6 @@ class webAPI:
             "port": self.port,
             "main_page": self.main_page,
             "js_path": self.js_path,
-            "get_energie_handler": self.get_energie_handler,
-            "get_movement_status_handler": self.get_movement_status_handler
         }
 
     # --- Proxy methods: schedule clientInServer.webClient coroutines on server loop ---
