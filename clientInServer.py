@@ -3,9 +3,13 @@ import warnings
 import asyncio
 import json
 
+SUIVI_SERVER_URL = "http://proj103.r2.enst.fr"  # URL du serveur de suivi
+SUIVI_SERVER_PORT = 80 # Port du serveur de suivi
+SUIVI_UPDATE_INTERVAL = 1.0  # Intervalle en secondes pour l'envoi des mises à jour de suivi
+
 
 class webClient:
-    def __init__(self, suivi_server_url, suivi_server_port):
+    def __init__(self, suivi_server_url = SUIVI_SERVER_URL, suivi_server_port = SUIVI_SERVER_PORT):
         self.session = web.ClientSession()
         self.suivi_server_url = suivi_server_url
         self.suivi_server_port = suivi_server_port
@@ -17,7 +21,6 @@ class webClient:
         self.send_position = False
         await self.session.close()
         print("Web client closed")
-        
     
 
     async def http_status_handler(self, status_code, context, response_text=None):
@@ -44,7 +47,7 @@ class webClient:
                 warnings.warn(f"Unexpected status code {status_code} when {context}")
                 return False
 
-    async def start_update_suivi(self, get_position_function, suivi_update_interval, tid = None):
+    async def start_update_suivi(self, get_position_function, suivi_update_interval=SUIVI_UPDATE_INTERVAL, tid = None):
         t = "" if tid is None else f"&t={tid}"
         print(f"Starting location updates every {suivi_update_interval} seconds to {self.suivi_server_url}:{self.suivi_server_port} {"" if tid is None else f"as team {tid}"}")
         while self.send_position:

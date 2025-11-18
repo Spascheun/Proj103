@@ -86,7 +86,9 @@ class webAPI:
     async def command_worker(self):
         print("Command worker started")
         while self.running:
-            command = await self.command_queue.async_q.get()
+            await self.command_queue.event.wait()
+            self.command_queue.event.clear()
+            command = self.command_queue.latest_val
             print("Processing command:", command)
             if self.main_application is not None:
                 self.main_application.movement.set_joystick_state(command['x'], command['y'])
@@ -97,7 +99,8 @@ class webAPI:
     async def toggle_worker(self):
         print("Toggle worker started")
         while self.running:
-            toggle = await self.toggle_queue.async_q.get()
+            toggle = await self.toggle_queue.event.wait()
+            self.toggle_queue.event.clear()
             print("Processing toggle request")
             if self.main_application is not None:
                 self.main_application.movement.toggle_mode()
