@@ -30,6 +30,18 @@ class webRTCClient {
 		return await res.json();
 	}
 
+	async get_energy() {
+		const res = await fetch('/energy', { method: 'GET' });
+		if (!res.ok) throw new Error(`HTTP ${res.status}`);
+		return await res.json();
+	}
+
+	async get_movement_status() {
+		const res = await fetch('/movement_status', { method: 'GET' });
+		if (!res.ok) throw new Error(`HTTP ${res.status}`);
+		return await res.json();
+	}
+
 	// méthode publique pour envoyer des commandes
 	sendCommand(x, y) {
 		let msg;

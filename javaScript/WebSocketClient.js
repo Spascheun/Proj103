@@ -58,6 +58,19 @@ class WebSocketClient {
 		return this.send(JSON.stringify({ 'type': "toggle_commands" }));
 	}
 
+	async get_energy() {
+		const res = await fetch('/energy', { method: 'GET' });
+		if (!res.ok) throw new Error(`HTTP ${res.status}`);
+		return await res.json();
+	}
+
+	async get_movement_status() {
+		const res = await fetch('/movement_status', { method: 'GET' });
+		if (!res.ok) throw new Error(`HTTP ${res.status}`);
+		return await res.json();
+	}
+
+
 	send(obj) {
 		let msg;
 		try {

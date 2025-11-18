@@ -1,3 +1,4 @@
+import json
 import serverV3
 import clientInServer
 import asyncio
@@ -44,6 +45,9 @@ class webAPI:
             self.command_queue = None
             self.toggle_queue = None
             self.js_path = js_path
+            self.get_energie_handler = tool.get_handler(self.main_application.energy.get_energy_data)
+            self.get_movement_status_handler = tool.get_handler(self.main_application.movement.get_movement_status)
+            self.shared = multiprocessing.Manager().dict()
 
 
     def start(self):
@@ -82,6 +86,26 @@ class webAPI:
             return
         asyncio.run_coroutine_threadsafe(self.command_worker(), self.loop)
         asyncio.run_coroutine_threadsafe(self.toggle_worker(), self.loop)
+
+    async def energy_worker(self):
+        print("Energy worker started")
+        while self.running:
+            await asyncio.sleep(1)  # Adjust the interval as needed
+            if self.main_application is not None:
+                self.shared["energy_data"] = json.dumps(self.main_application.energy.get_energy_data())
+                print(f"Energy data: {self.shared['energy_data']}")
+            else:
+                print("No main_application defined; cannot retrieve energy data")
+
+    async def movement_status_worker(self):
+        print("Movement status worker started")
+        while self.running:
+            await asyncio.sleep(1)  # Adjust the interval as needed
+            if self.main_application is not None:
+                self.shared["movement_status"] = json.dumps(self.main_application.movement.get_movement_status())
+                print(f"Movement status: {self.shared['movement_status']}")
+            else:
+                print("No main_application defined; cannot retrieve movement status")
 
     async def command_worker(self):
         print("Command worker started")
@@ -134,7 +158,7 @@ class webAPI:
             self.command_queue = tool.Queue(loop=self.loop)
         if self.toggle_queue is None:
             self.toggle_queue = tool.Queue(loop=self.loop)
-        self.server_process = multiprocessing.Process(target=serverV3.new_web_server_process, args=(self.export_config(), self.command_queue.mp_q, self.toggle_queue.mp_q), daemon=False)
+        self.server_process = multiprocessing.Process(target=serverV3.new_web_server_process, args=(self.export_config(), self.command_queue.mp_q, self.toggle_queue.mp_q, self.shared), daemon=False)
         self.server_process.start()
         self.server_running = True
         print("Web server process started")
@@ -201,7 +225,9 @@ class webAPI:
             "host": self.host,
             "port": self.port,
             "main_page": self.main_page,
-            "js_path": self.js_path
+            "js_path": self.js_path,
+            "get_energie_handler": self.get_energie_handler,
+            "get_movement_status_handler": self.get_movement_status_handler
         }
 
     # --- Proxy methods: schedule clientInServer.webClient coroutines on server loop ---
@@ -216,6 +242,7 @@ class webAPI:
     def stop_update_suivi(self):
         if not self._ensure_client(): return
         return asyncio.run_coroutine_threadsafe(self.client.stop_update_suivi(), self.loop)
+    
     def get_flags(self):
         if not self._ensure_client(): return
         return asyncio.run_coroutine_threadsafe(self.client.get_flags(), self.loop)
@@ -223,6 +250,7 @@ class webAPI:
     def capture_flag(self, mid, msec, minner, tid=None, wait=True):
         if not self._ensure_client(): return
         return asyncio.run_coroutine_threadsafe(self.client.capture_flag(mid, msec, minner, tid, wait), self.loop)
+    
     def get_race_status(self):
         if not self._ensure_client(): return
         return asyncio.run_coroutine_threadsafe(self.client.get_race_status(), self.loop)

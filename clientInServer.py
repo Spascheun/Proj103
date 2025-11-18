@@ -51,7 +51,7 @@ class webClient:
         t = "" if tid is None else f"&t={tid}"
         print(f"Starting location updates every {suivi_update_interval} seconds to {self.suivi_server_url}:{self.suivi_server_port} {"" if tid is None else f"as team {tid}"}")
         while self.send_position:
-            x, y = await get_position_function()
+            x, y = get_position_function()
             async with self.session.post(f"{self.suivi_server_url}/api/pos?x={x}&y={y}{t}:{self.suivi_server_port}") as resp:
                 self.http_status_handler(await resp.status, "Position update", await resp.text())
             await asyncio.sleep(suivi_update_interval)

@@ -1,34 +1,38 @@
 import json
 from aiohttp import web
 import aiortc as rtc
-from multiprocessing import SimpleQueue
+from multiprocessing import SimpleQueue, Manager
 import warnings
+import tool
 
 
-def new_web_server_process(cfg : dict, command_queue : SimpleQueue, toggle_queue : SimpleQueue) -> None:
+def new_web_server_process(cfg : dict, command_queue : SimpleQueue, toggle_queue : SimpleQueue, shared) -> None:
     '''Start a web server in a new process using the plain config dict.
 
     `cfg` is expected to be a dict with keys: host, port, main_page, ...
     `command_queue` is a multiprocessing.SimpleQueue used for parent-child IPC.
     '''
     print("initializing web server process")
-    server = webServer(cfg["host"], cfg["port"], cfg["main_page"], cfg["js_path"], command_queue, toggle_queue)
+    server = webServer(cfg["host"], cfg["port"], cfg["main_page"], cfg["js_path"], command_queue, toggle_queue, shared)
     server.run() 
 
 class webServer:
-    def __init__(self, host : str, port : int, main_page : str, js_path : str, command_queue : SimpleQueue, toggle_queue : SimpleQueue):
+    def __init__(self, host : str, port : int, main_page : str, js_path : str, command_queue : SimpleQueue, toggle_queue : SimpleQueue, shared) -> None:
         self.host = host
         self.port = port
         self.main_page = main_page
         self.js_path = js_path
         self.command_queue = command_queue
         self.toggle_queue = toggle_queue
+        self.shared = shared
         self.app = web.Application()
         self.app.router.add_post("/rtcOffer_command", self.rtcOffer_command)
         self.app.router.add_get("/", self.get_main_page_handler)
         self.app.router.add_get("/javaScript/main.js", self.get_main_js_handler)
         self.app.router.add_get("/javaScript/WebRTCClient.js", self.get_web_rtc_client_js_handler)
         self.app.router.add_get("/javaScript/WebSocketClient.js", self.get_web_socket_client_js_handler)
+        self.app.router.add_get("/energy", self.get_energy_handler)
+        self.app.router.add_get("/movement_status", self.get_movement_status_handler)
         self.app.add_routes([web.get('/ws', self.ws_command)])
 
     def command(self, cmd : dict):
@@ -128,11 +132,16 @@ class webServer:
             ),
         )
 
+    async def get_energy_handler(self, request : web.Request) -> web.Response:
+        return web.Response(text=self.shared.get("energy_data"))
+    
+    async def get_movement_status_handler(self, request : web.Request) -> web.Response:
+        return web.Response(text=self.shared.get("movement_status"))
+
     async def get_main_page_handler(self, request : web.Request) -> web.Response:
         return web.FileResponse(self.main_page)
 
     async def get_main_js_handler(self, request : web.Request) -> web.Response:
-        print("Serving main.js")
         return web.FileResponse(f"{self.js_path}main.js")
 
     async def get_web_rtc_client_js_handler(self, request : web.Request) -> web.Response:
@@ -140,5 +149,7 @@ class webServer:
 
     async def get_web_socket_client_js_handler(self, request : web.Request) -> web.Response:
         return web.FileResponse(f"{self.js_path}WebSocketClient.js")
+
+
 
     
