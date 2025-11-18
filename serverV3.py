@@ -12,14 +12,15 @@ def new_web_server_process(cfg : dict, command_queue : Queue, toggle_queue : Que
     `command_queue` is a multiprocessing.Queue used for parent-child IPC.
     '''
     print("initializing web server process")
-    server = webServer(cfg["host"], cfg["port"], cfg["main_page"], command_queue, toggle_queue)
+    server = webServer(cfg["host"], cfg["port"], cfg["main_page"], cfg["js_path"], command_queue, toggle_queue)
     server.run() 
 
 class webServer:
-    def __init__(self, host : str, port : int, main_page : str, command_queue : Queue, toggle_queue : Queue):
+    def __init__(self, host : str, port : int, main_page : str, js_path : str, command_queue : Queue, toggle_queue : Queue):
         self.host = host
         self.port = port
         self.main_page = main_page
+        self.js_path = js_path
         self.command_queue = command_queue
         self.toggle_queue = toggle_queue
         self.app = web.Application()
@@ -132,12 +133,12 @@ class webServer:
 
     async def get_main_js_handler(self, request : web.Request) -> web.Response:
         print("Serving main.js")
-        return web.FileResponse("javaScript/main.js")
+        return web.FileResponse(f"{self.js_path}main.js")
 
     async def get_web_rtc_client_js_handler(self, request : web.Request) -> web.Response:
-        return web.FileResponse("javaScript/WebRTCClient.js")
+        return web.FileResponse(f"{self.js_path}WebRTCClient.js")
 
     async def get_web_socket_client_js_handler(self, request : web.Request) -> web.Response:
-        return web.FileResponse("javaScript/WebSocketClient.js")
+        return web.FileResponse(f"{self.js_path}WebSocketClient.js")
 
     

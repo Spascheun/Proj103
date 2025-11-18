@@ -8,6 +8,7 @@ import threading
 HOST = "0.0.0.0" #localhost allowing external connections
 PORT = 8080
 MAIN_PAGE = "indexV2.html"
+JS_PATH = "javaScript/"
 SUIVI_SERVER_URL = "http://proj103.r2.enst.fr"  # URL du serveur de suivi
 SUIVI_SERVER_PORT = 80 # Port du serveur de suivi
 SUIVI_UPDATE_INTERVAL = 1.0  # Intervalle en secondes pour l'envoi des mises à jour de suivi
@@ -21,10 +22,10 @@ class webAPI:
             host=HOST,
             port=PORT,
             main_page=MAIN_PAGE,
+            js_path=JS_PATH,
             suivi_server_url=SUIVI_SERVER_URL,
             suivi_server_port=SUIVI_SERVER_PORT,
-            command_queue=None, 
-            toggle_queue=None,
+            main_application = None,
 
         ):
             self.host = host
@@ -32,16 +33,16 @@ class webAPI:
             self.main_page = main_page
             self.suivi_server_url = suivi_server_url
             self.suivi_server_port = suivi_server_port
-            self.command_queue = command_queue
-            self.toggle_queue = toggle_queue
             self.server_process = None
             self.loop = None
             self.client = None
             self.running = False
             self.client_running = False
             self.server_running = False
-            
-            
+            self.main_application = main_application
+            self.command_queue = None
+            self.toggle_queue = None
+            self.worker = asyncio.gather(self.command_worker(), self.toggle_worker())
 
     def start(self):
         if self.running: 
@@ -51,6 +52,7 @@ class webAPI:
         self.thread = threading.Thread(target=self.loop_init, daemon=False)
         self.thread.start()
         self.running = True
+        asyncio.run_coroutine_threadsafe(self.worker, self.loop)
         self.start_server()
         self.start_client()
 
@@ -68,6 +70,16 @@ class webAPI:
             asyncio.run(self._close_client())
             self.close_server()
             print("webAPI closed")
+
+    async def command_worker(self):
+        while self.running:
+            command = await self.command_queue.get()
+            self.main_application.movement.set_joystick_state(command['x'], command['y'])
+        
+    async def toggle_worker(self):
+        while self.running:
+            toggle = await self.toggle_queue.get()
+            self.main_application.movement.toggle_mode()
 
     def _ensure_loop(self):
         if self.loop is not None and self.loop.is_running():
@@ -162,7 +174,8 @@ class webAPI:
         return {
             "host": self.host,
             "port": self.port,
-            "main_page": self.main_page
+            "main_page": self.main_page,
+            "js_path": self.js_path
         }
 
     # --- Proxy methods: schedule clientInServer.webClient coroutines on server loop ---
