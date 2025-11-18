@@ -1,22 +1,22 @@
 import json
 from aiohttp import web
 import aiortc as rtc
-from multiprocessing import Queue
+from multiprocessing import SimpleQueue
 import warnings
 
 
-def new_web_server_process(cfg : dict, command_queue : Queue, toggle_queue : Queue) -> None:
+def new_web_server_process(cfg : dict, command_queue : SimpleQueue, toggle_queue : SimpleQueue) -> None:
     '''Start a web server in a new process using the plain config dict.
 
     `cfg` is expected to be a dict with keys: host, port, main_page, ...
-    `command_queue` is a multiprocessing.Queue used for parent-child IPC.
+    `command_queue` is a multiprocessing.SimpleQueue used for parent-child IPC.
     '''
     print("initializing web server process")
     server = webServer(cfg["host"], cfg["port"], cfg["main_page"], cfg["js_path"], command_queue, toggle_queue)
     server.run() 
 
 class webServer:
-    def __init__(self, host : str, port : int, main_page : str, js_path : str, command_queue : Queue, toggle_queue : Queue):
+    def __init__(self, host : str, port : int, main_page : str, js_path : str, command_queue : SimpleQueue, toggle_queue : SimpleQueue):
         self.host = host
         self.port = port
         self.main_page = main_page
@@ -33,7 +33,7 @@ class webServer:
 
     def command(self, cmd : dict):
         """Handle a command received from a client."""
-        print("Command received:", cmd)
+        #print("Command received:", cmd)
         if self.command_queue is not None:
             self.command_queue.put(cmd)
         else:
@@ -69,7 +69,7 @@ class webServer:
         return self.ws
 
     async def toggle_commands(self):
-        print("Toggling commands")
+        #print("Toggling commands")
         if self.toggle_queue is not None:
             self.toggle_queue.put(True)
         else:

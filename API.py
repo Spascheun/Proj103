@@ -3,6 +3,7 @@ import clientInServer
 import asyncio
 import multiprocessing
 import threading
+import tool
 
 
 HOST = "0.0.0.0" #localhost allowing external connections
@@ -42,7 +43,8 @@ class webAPI:
             self.main_application = main_application
             self.command_queue = None
             self.toggle_queue = None
-            self.worker = asyncio.gather(self.command_worker(), self.toggle_worker())
+            self.js_path = js_path
+
 
     def start(self):
         if self.running: 
@@ -52,8 +54,8 @@ class webAPI:
         self.thread = threading.Thread(target=self.loop_init, daemon=False)
         self.thread.start()
         self.running = True
-        asyncio.run_coroutine_threadsafe(self.worker, self.loop)
         self.start_server()
+        self.start_workers()
         self.start_client()
 
 
@@ -71,15 +73,36 @@ class webAPI:
             self.close_server()
             print("webAPI closed")
 
+    def start_workers(self):
+        if not self.running:
+            print("webAPI is not running. Start webAPI before starting workers.")
+            return
+        if self.loop is None or not self.loop.is_running():
+            print("Event loop not initialized yet. Wait a moment and try again.")
+            return
+        asyncio.run_coroutine_threadsafe(self.command_worker(), self.loop)
+        asyncio.run_coroutine_threadsafe(self.toggle_worker(), self.loop)
+
     async def command_worker(self):
+        print("Command worker started")
         while self.running:
-            command = await self.command_queue.get()
-            self.main_application.movement.set_joystick_state(command['x'], command['y'])
+            command = await self.command_queue.async_q.get()
+            print("Processing command:", command)
+            if self.main_application is not None:
+                self.main_application.movement.set_joystick_state(command['x'], command['y'])
+            else:
+                #print("No main_application defined; cannot process command")
+                pass
         
     async def toggle_worker(self):
+        print("Toggle worker started")
         while self.running:
-            toggle = await self.toggle_queue.get()
-            self.main_application.movement.toggle_mode()
+            toggle = await self.toggle_queue.async_q.get()
+            print("Processing toggle request")
+            if self.main_application is not None:
+                self.main_application.movement.toggle_mode()
+            else:
+                print("No main_application defined; cannot toggle mode")
 
     def _ensure_loop(self):
         if self.loop is not None and self.loop.is_running():
@@ -105,10 +128,10 @@ class webAPI:
         print("Starting web server process")
         # ensure we have a command_queue to communicate with the child
         if self.command_queue is None:
-            self.command_queue = multiprocessing.Queue()
+            self.command_queue = tool.Queue(loop=self.loop)
         if self.toggle_queue is None:
-            self.toggle_queue = multiprocessing.Queue()
-        self.server_process = multiprocessing.Process(target=serverV3.new_web_server_process, args=(self.export_config(), self.command_queue, self.toggle_queue), daemon=False)
+            self.toggle_queue = tool.Queue(loop=self.loop)
+        self.server_process = multiprocessing.Process(target=serverV3.new_web_server_process, args=(self.export_config(), self.command_queue.mp_q, self.toggle_queue.mp_q), daemon=False)
         self.server_process.start()
         self.server_running = True
         print("Web server process started")
